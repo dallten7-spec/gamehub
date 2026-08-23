@@ -1,20 +1,23 @@
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>GameHub</Text>
       <Text style={styles.subtitle}>بازی‌های آنلاین چندنفره</Text>
 
-      <Pressable style={styles.button}>
+      <Pressable style={styles.button} onPress={() => router.push('/auth/login')}>
         <Text style={styles.buttonText}>اونو آنلاین</Text>
       </Pressable>
 
-      <Pressable style={styles.button}>
+      <Pressable style={styles.button} onPress={() => router.push('/auth/login')}>
         <Text style={styles.buttonText}>حکم</Text>
       </Pressable>
 
-      <Pressable style={styles.membershipButton}>
+      <Pressable style={styles.membershipButton} onPress={() => router.push('/membership')}>
         <Text style={styles.buttonText}>عضویت ویژه</Text>
       </Pressable>
     </View>
