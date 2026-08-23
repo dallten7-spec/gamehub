@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "GameHub",
+    "slug": "gamehub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "gamehub",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gamehub.app"
+    },
+    "android": {
+      "package": "com.gamehub.app",
+      "permissions": ["RECORD_AUDIO", "INTERNET"]
+    },
+    "plugins": ["expo-router"]
+  }
+}
