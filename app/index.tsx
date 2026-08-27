@@ -6,62 +6,76 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>GameHub</Text>
-      <Text style={styles.subtitle}>بازی‌های آنلاین چندنفره</Text>
+      <Text style={styles.logo}>GAMEHUB</Text>
 
-      <Pressable style={styles.button} onPress={() => router.push('/auth/login')}>
-        <Text style={styles.buttonText}>اونو آنلاین</Text>
+      <Text style={styles.title}>بازی‌های آنلاین چندنفره</Text>
+
+      <Text style={styles.subtitle}>
+        بازی کن، امتیاز بگیر و با دوستانت رقابت کن
+      </Text>
+
+      <Pressable
+        style={styles.gameButton}
+        onPress={() => router.push("/auth/login")}
+      >
+        <Text style={styles.gameButtonText}>اونو آنلاین</Text>
+        <Text style={styles.gameInfo}>بازی سریع ۲ تا ۴ نفره</Text>
       </Pressable>
 
-      <Pressable style={styles.button} onPress={() => router.push('/auth/login')}>
-        <Text style={styles.buttonText}>حکم</Text>
-      </Pressable>
+      <Pressable
+        style={styles.gameButton}
+        onPress={() => router.push("/auth/login")}
+      >
+        <Text style={styles.gameButtonText}>حکملاً نگران نباش! پیش می‌آید. این لینک مستقیم ورود به صفحه ویرایش همان فایل است:
 
-      <Pressable style={styles.membershipButton} onPress={() => router.push('/membership')}>
-        <Text style={styles.buttonText}>عضویت ویژه</Text>
-      </Pressable>
-    </View>
-  );
-}
+👉 **[لینک مستقیم ویرایش فایل index.tsx](https://github.com/dallten7-spec/gamehub/edit/main/app/index.tsx)**
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#101827",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
+### مراحل را به ترتیب انجام بده:
+
+۱. روی لینک بالا بزن (اگر ازت پرسید، با اکانت گیت‌هابت لاگین کن).
+۲. کدهای قبلی که داخلش هست را **کامل پاک کن** (Select All و بعد Delete).
+۳. کد زیر را کپی کن و در آنجا **Paste کن**:
+```tsx
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useRouter } from "expo-router";
+
+export default function HomeScreen() {
+  const router = useRouter();
+
+  return (
+<View style={styles.container}>
+<Text style={styles.logo}>GAMEHUB</Text>
+
+<Text style={styles.title}>بازی‌های آنلاین چندنفره</Text>
+
+<Text style={styles.subtitle}>
+بازی کن، امتیاز بگیر و با دوستانت رقابت کن
+</Text>
+
+<Pressable
+style={styles.gameButton}
+onPress={() => router.push("/auth/login")}
+>
+<Text style={styles.gameButtonText}>اونو آنلاین</Text>
+<Text style={styles.gameInfo}>بازی سریع ۲ تا ۴ نفره</Text>
+</Pressable>
+
+<Pressable
+style={styles.gameButton}
+onPress={() => router.push("/auth/login")}
+>
+<Text style={styles.gameButtonText}>حکم700",
+textAlign: "right",
   },
-  title: {
-    color: "#ffffff",
-    fontSize: 36,
-    fontWeight: "bold",
-    marginBottom: 8,
+  gameInfo: {
+color: "#94A3B8",
+fontSize: 14,
+marginTop: 8,
+textAlign: "right",
   },
-  subtitle: {
-    color: "#aab4c5",
-    fontSize: 17,
-    marginBottom: 36,
-  },
-  button: {
-    width: "100%",
-    backgroundColor: "#2563eb",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 14,
-    alignItems: "center",
-  },
-  membershipButton: {
-    width: "100%",
-    backgroundColor: "#c084fc",
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 10,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 17,
-    fontWeight: "bold",
+  comingSoon: {
+color: "#64748B",
+fontSize: 14,
+marginTop: 14,
   },
 });
