@@ -20,26 +20,37 @@ const VEHICLES = [
 const XP_REWARD_PER_WIN = 40;
 const GAME_ID = 'war_god';
 
-// تابع محاسبه تصاعدی لول و پیشرفت بر اساس XP
-// لول ۱ به ۲ = ۲۰۰ XP، لول ۲ به ۳ = ۳۰۰ XP، لول ۳ به ۴ = ۴۰۰ XP و ...
+// فرمول بالانس‌شده: لول ۱ تا ۱۰ روان‌تر و بعد از لول ۱۰ سخت و تصاعدی سنگین
+const getXpNeededForLevel = (lvl: number): number => {
+  if (lvl <= 1) return 120; // ۳ برد برای اولین لول‌آپ
+  if (lvl <= 10) {
+    // شیب ملایم (۱۰٪ رشد در هر لول)
+    return Math.round(120 * Math.pow(1.10, lvl - 1));
+  }
+  // از لول ۱۰ به بالا: شیب تند و رقابتی (۲۵٪ رشد در هر لول)
+  const baseAtLvl10 = Math.round(120 * Math.pow(1.10, 9));
+  return Math.round(baseAtLvl10 * Math.pow(1.25, lvl - 10));
+};
+
+// تابع محاسبه دقیق پیشرفت و لول فعلی
 const getProgressInfo = (xp: number) => {
   let level = 1;
-  let totalRequiredXp = 0;
-  let requiredXpForNext = 200;
+  let accumulatedXp = 0;
+  let neededForCurrentLvl = getXpNeededForLevel(level);
 
-  while (xp >= totalRequiredXp + requiredXpForNext) {
-    totalRequiredXp += requiredXpForNext;
+  while (xp >= accumulatedXp + neededForCurrentLvl) {
+    accumulatedXp += neededForCurrentLvl;
     level += 1;
-    requiredXpForNext += 100;
+    neededForCurrentLvl = getXpNeededForLevel(level);
   }
 
-  const currentLevelXp = xp - totalRequiredXp;
-  const remainingXp = requiredXpForNext - currentLevelXp;
+  const currentLevelProgressXp = xp - accumulatedXp;
+  const remainingXp = neededForCurrentLvl - currentLevelProgressXp;
 
   return {
     level,
-    currentLevelXp,
-    requiredXpForNext,
+    currentLevelProgressXp,
+    neededForCurrentLvl,
     remainingXp,
   };
 };
@@ -53,7 +64,7 @@ export default function WarGodGame() {
   const [loading, setLoading] = useState(true);
   const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, wins: 0 });
 
-  // دریافت آمار از دیتابیس
+  // دریافت آمار از Supabase
   useEffect(() => {
     fetchStats();
   }, []);
@@ -95,7 +106,7 @@ export default function WarGodGame() {
   };
 
   const handleAttack = async () => {
-    // حمله کاربر
+    // شلیک کاربر
     const playerDamage = Math.floor(Math.random() * 15) + (selectedVehicle.power - 10);
     const newEnemyHp = Math.max(0, enemyHp - playerDamage);
     setEnemyHp(newEnemyHp);
@@ -130,7 +141,7 @@ export default function WarGodGame() {
 
       Alert.alert(
         '🏆 پیروزی!',
-        `ماشین حریف منهدم شد!\nپاداش: ${XP_REWARD_PER_WIN}+ امتیاز XP\nسطح جدید: لول ${progress.level}\nXP لازم تا لول بعدی: ${progress.remainingXp}`
+        `ماشین حریف منهدم شد!\nپاداش: ${XP_REWARD_PER_WIN}+ امتیاز XP\nسطح فعلی: لول ${progress.level}\nXP لازم تا لول بعدی: ${progress.remainingXp}`
       );
       return;
     }
@@ -163,7 +174,7 @@ export default function WarGodGame() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* کارت وضعیت فرمانده و لول تصاعدی */}
+      {/* کارت مشخصات فرمانده */}
       <View style={styles.statsCard}>
         <Text style={styles.statsTitle}>وضعیت فرمانده در «خدای جنگ»</Text>
         <View style={styles.statsRow}>
@@ -172,22 +183,27 @@ export default function WarGodGame() {
           <Text style={styles.statBadge}>بردها: {playerStats.wins}</Text>
         </View>
 
-        {/* نوار پیشرفت تا لول بعدی */}
+        {/* نوار پیشرفت لول */}
         <View style={styles.progressContainer}>
           <View
             style={[
               styles.progressBar,
-              { width: `${Math.min(100, Math.round((progress.currentLevelXp / progress.requiredXpForNext) * 100))}%` },
+              {
+                width: `${Math.min(
+                  100,
+                  Math.round((progress.currentLevelProgressXp / progress.neededForCurrentLvl) * 100)
+                )}%`,
+              },
             ]}
           />
         </View>
         <Text style={styles.xpHint}>
-          پیشرفت سطح: {progress.currentLevelXp} / {progress.requiredXpForNext} XP ({progress.remainingXp} XP تا سطح بعدی)
+          پیشرفت سطح {progress.level}: {progress.currentLevelProgressXp} / {progress.neededForCurrentLvl} XP ({progress.remainingXp} XP تا سطح بعدی)
         </Text>
       </View>
 
       {!inBattle ? (
-        // بخش گاراژ و انتخاب تانک / ماشین
+        // گاراژ و انتخاب ماشین
         <View style={styles.garage}>
           <Text style={styles.sectionTitle}>انتخاب ماشین جنگی:</Text>
           {VEHICLES.map((vehicle) => (
@@ -214,7 +230,7 @@ export default function WarGodGame() {
           </TouchableOpacity>
         </View>
       ) : (
-        // بخش میدان جنگ
+        // میدان جنگ
         <View style={styles.arena}>
           <View style={styles.healthContainer}>
             <View style={styles.hpBox}>
