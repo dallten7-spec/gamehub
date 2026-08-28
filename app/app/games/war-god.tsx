@@ -11,11 +11,11 @@ import {
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
-// ماشین‌های جنگی به همراه مشخصات
+// لیست ماشین‌های جنگی به همراه مشخصات
 const VEHICLES = [
-  { id: 'iron_beast', name: 'Iron Beast', power: 35, armor: 110, icon: '🚜', price: 'رایگان' },
-  { id: 'desert_storm', name: 'Desert Storm', power: 45, armor: 130, icon: '🚙', price: '۷۵,۰۰۰ تومان' },
-  { id: 'titan_crusher', name: 'Titan Crusher', power: 60, armor: 160, icon: '🚚', price: '۱۵۰,۰۰۰ تومان' },
+  { id: 'iron_beast', name: 'Iron Beast', power: 35, armor: 110, icon: '🚜', price: 0, priceLabel: 'رایگان' },
+  { id: 'desert_storm', name: 'Desert Storm', power: 48, armor: 140, icon: '🚙', price: 75000, priceLabel: '۷۵,۰۰۰ سکه' },
+  { id: 'titan_crusher', name: 'Titan Crusher', power: 65, armor: 180, icon: '🚚', price: 150000, priceLabel: '۱۵۰,۰۰۰ سکه' },
 ];
 
 const XP_REWARD_PER_WIN = 40;
@@ -56,8 +56,9 @@ const getProgressInfo = (xp: number) => {
 export default function WarGodGame() {
   const router = useRouter();
   const [selectedVehicle, setSelectedVehicle] = useState(VEHICLES[0]);
+  const [unlockedVehicles, setUnlockedVehicles] = useState<string[]>(['iron_beast']);
   const [inBattle, setInBattle] = useState(false);
-  const [playerHp, setPlayerHp] = useState(100);
+  const [playerHp, setPlayerHp] = useState(110);
   const [enemyHp, setEnemyHp] = useState(120);
   const [maxEnemyHp, setMaxEnemyHp] = useState(120);
   const [battleLog, setBattleLog] = useState<string[]>([]);
@@ -68,6 +69,7 @@ export default function WarGodGame() {
   const [shieldActive, setShieldActive] = useState(false);
   const [airstrikeCooldown, setAirstrikeCooldown] = useState(0);
   const [repairCooldown, setRepairCooldown] = useState(0);
+  const [isEnemyTurn, setIsEnemyTurn] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -102,42 +104,70 @@ export default function WarGodGame() {
     }
   };
 
+  const handleSelectVehicle = (vehicle: typeof VEHICLES[0]) => {
+    if (unlockedVehicles.includes(vehicle.id)) {
+      setSelectedVehicle(vehicle);
+    } else {
+      Alert.alert(
+        'قفل‌گشایی تانک',
+        `آیا می‌خواهید ${vehicle.name} را باز کنید؟`,
+        [
+          { text: 'انصراف', style: 'cancel' },
+          {
+            text: 'تایید',
+            onPress: () => {
+              setUnlockedVehicles((prev) => [...prev, vehicle.id]);
+              setSelectedVehicle(vehicle);
+              Alert.alert('موفق', `${vehicle.name} با موفقیت آنلاک شد و انتخاب گردید!`);
+            },
+          },
+        ]
+      );
+    }
+  };
+
   const startBattle = () => {
-    const enemyBaseHp = 100 + (playerStats.level * 10);
+    const enemyBaseHp = 100 + (playerStats.level * 12);
     setPlayerHp(selectedVehicle.armor);
     setEnemyHp(enemyBaseHp);
     setMaxEnemyHp(enemyBaseHp);
     setShieldActive(false);
     setAirstrikeCooldown(0);
     setRepairCooldown(0);
-    setBattleLog([`💥 میدان نبرد فعال شد! شما با "${selectedVehicle.name}" مستقر شدید.`]);
+    setIsEnemyTurn(false);
+    setBattleLog([`💥 میدان نبرد فعال شد! شما با "${selectedVehicle.name}" وارد میدان شدید.`]);
     setInBattle(true);
   };
 
   const executeEnemyTurn = (currentPlayerHp: number, currentShield: boolean) => {
-    let enemyDamage = Math.floor(Math.random() * 18) + 12;
-    let logMsg = '';
+    setIsEnemyTurn(true);
+    setTimeout(() => {
+      let enemyDamage = Math.floor(Math.random() * 18) + 12;
+      let logMsg = '';
 
-    if (currentShield) {
-      enemyDamage = Math.floor(enemyDamage * 0.5);
-      logMsg = `🛡️ سپر شما فعال بود! آسیب دریافتی نصف شد (${enemyDamage} دمیج).`;
-      setShieldActive(false);
-    } else {
-      logMsg = `⚡ حریف شلیک کرد و ${enemyDamage} آسیب به شما وارد کرد!`;
-    }
+      if (currentShield) {
+        enemyDamage = Math.floor(enemyDamage * 0.5);
+        logMsg = `🛡️ سپر شما فعال بود! آسیب نصف شد (${enemyDamage} دمیج).`;
+        setShieldActive(false);
+      } else {
+        logMsg = `⚡ حریف شلیک سنگین کرد و ${enemyDamage} دمیج وارد کرد!`;
+      }
 
-    const updatedPlayerHp = Math.max(0, currentPlayerHp - enemyDamage);
-    setPlayerHp(updatedPlayerHp);
+      const updatedPlayerHp = Math.max(0, currentPlayerHp - enemyDamage);
+      setPlayerHp(updatedPlayerHp);
+      setBattleLog((prev) => [logMsg, ...prev]);
+      setIsEnemyTurn(false);
 
-    setBattleLog((prev) => [logMsg, ...prev]);
-
-    if (updatedPlayerHp <= 0) {
-      setInBattle(false);
-      Alert.alert('💥 شکست!', 'ماشین جنگی شما منهدم شد. ارتقا دهید و دوباره امتحان کنید!');
-    }
+      if (updatedPlayerHp <= 0) {
+        setInBattle(false);
+        Alert.alert('💥 شکست!', 'ماشین جنگی شما منهدم شد. تجهیزات خود را ارتقا دهید و مجدداً تلاش کنید!');
+      }
+    }, 600);
   };
 
-  const handleAttack = async () => {
+  const handleAttack = () => {
+    if (isEnemyTurn) return;
+
     const playerDamage = Math.floor(Math.random() * 16) + (selectedVehicle.power - 8);
     const newEnemyHp = Math.max(0, enemyHp - playerDamage);
     setEnemyHp(newEnemyHp);
@@ -145,60 +175,92 @@ export default function WarGodGame() {
     if (airstrikeCooldown > 0) setAirstrikeCooldown(airstrikeCooldown - 1);
     if (repairCooldown > 0) setRepairCooldown(repairCooldown - 1);
 
-    const log = `🎯 شما با توپ اصلی شلیک کردید: ${playerDamage} آسیب به دشمن!`;
-    setBattleLog((prev) => [log, ...prev]);
+    setBattleLog((prev) => [`🎯 شلیک توپ اصلی: ${playerDamage} آسیب به زره دشمن وارد شد!`, ...prev]);
 
     if (newEnemyHp <= 0) {
       handleVictory();
       return;
     }
 
-    setTimeout(() => {
-      executeEnemyTurn(playerHp, shieldActive);
-    }, 400);
+    executeEnemyTurn(playerHp, shieldActive);
   };
 
   const handleAirstrike = () => {
-    if (airstrikeCooldown > 0) return;
+    if (isEnemyTurn || airstrikeCooldown > 0) return;
 
-    const damage = selectedVehicle.power + 25;
+    const damage = selectedVehicle.power + 28;
     const newEnemyHp = Math.max(0, enemyHp - damage);
     setEnemyHp(newEnemyHp);
     setAirstrikeCooldown(3);
 
-    setBattleLog((prev) => [`🚀 حمله هوایی با موفقیت انجام شد! ${damage} آسیب مرگبار!`, ...prev]);
+    if (repairCooldown > 0) setRepairCooldown(repairCooldown - 1);
+
+    setBattleLog((prev) => [`🚀 بمباران هوایی دقیق! ${damage} آسیب مرگبار وارد شد!`, ...prev]);
 
     if (newEnemyHp <= 0) {
       handleVictory();
       return;
     }
 
-    setTimeout(() => {
-      executeEnemyTurn(playerHp, shieldActive);
-    }, 400);
+    executeEnemyTurn(playerHp, shieldActive);
   };
 
   const handleShield = () => {
+    if (isEnemyTurn || shieldActive) return;
+
     setShieldActive(true);
-    setBattleLog((prev) => ['🛡️ سپر دفاعی فعال شد! ۵۰٪ آسیب نوبت بعد دفع می‌شود.', ...prev]);
-    setTimeout(() => {
-      executeEnemyTurn(playerHp, true);
-    }, 400);
+    if (airstrikeCooldown > 0) setAirstrikeCooldown(airstrikeCooldown - 1);
+    if (repairCooldown > 0) setRepairCooldown(repairCooldown - 1);
+
+    setBattleLog((prev) => ['🛡️ سپر الکترومغناطیسی فعال شد (۵۰٪ کاهش آسیب نوبت بعد).', ...prev]);
+
+    executeEnemyTurn(playerHp, true);
   };
 
   const handleRepair = () => {
-    if (repairCooldown > 0) return;
+    if (isEnemyTurn || repairCooldown > 0) return;
 
     const heal = 35;
     const newHp = Math.min(selectedVehicle.armor, playerHp + heal);
     setPlayerHp(newHp);
     setRepairCooldown(3);
 
-    setBattleLog((prev) => [`🔧 تعمیر اضطراری: ${heal} واحد HP بازیابی شد.`, ...prev]);
+    if (airstrikeCooldown > 0) setAirstrikeCooldown(airstrikeCooldown - 1);
 
-    setTimeout(() => {
-      executeEnemyTurn(newHp, shieldActive);
-    }, 400);
+    setBattleLog((prev) => [`🔧 نانوبات‌های تعمیراتی فعال شدند: +${heal} HP بازیابی شد.`, ...prev]);
+
+    executeEnemyTurn(newHp, shieldActive);
+  };
+
+  const handleVictory = async () => {
+    const newXp = playerStats.xp + XP_REWARD_PER_WIN;
+    const progress = getProgressInfo(newXp);
+    const newWins = playerStats.wins + 1;
+
+    setPlayerStats({ xp: newXp, level: progress.level, wins: newWins });
+    setInBattle(false);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('user_game_stats').upsert({
+          user_id: user.id,
+
+  };
+
+  const handleRepair = () => {
+    if (isEnemyTurn || repairCooldown > 0) return;
+
+    const heal = 35;
+    const newHp = Math.min(selectedVehicle.armor, playerHp + heal);
+    setPlayerHp(newHp);
+    setRepairCooldown(3);
+
+    if (airstrikeCooldown > 0) setAirstrikeCooldown(airstrikeCooldown - 1);
+
+    setBattleLog((prev) => [`🔧 نانوبات‌های تعمیراتی فعال شدند: +${heal} HP بازیابی شد.`, ...prev]);
+
+    executeEnemyTurn(newHp, shieldActive);
   };
 
   const handleVictory = async () => {
@@ -222,22 +284,25 @@ export default function WarGodGame() {
         });
       }
     } catch (err) {
-      console.error('خطا در ذخیره برد:', err);
+      console.error('خطا در ذخیره آمار بازی:', err);
     }
 
     Alert.alert(
       '🏆 پیروزی قاطعانه!',
-      `دشمن پودر شد!\nپاداش: ${XP_REWARD_PER_WIN}+ امتیاز XP\nسطح جدید: لول ${progress.level}\nXP تا لول بعدی: ${progress.remainingXp}`
+      `ماشین دشمن منهدم گردید!\n\n🎁 پاداش نبرد: +${XP_REWARD_PER_WIN} XP\n⭐ سطح جدید شما: لول ${progress.level}\n⚡ پیشرفت تا سطح بعدی: ${progress.remainingXp} XP`
     );
   };
 
-  const progress = getProgressInfo(playerStats.xp);
-
-  if (loading) {
-    return (
+  const handleSurrender = () => {
+    Alert.alert('تسلیم و خروج', 'آیا مطمئن هستید که می‌خواهید از اینوار پیشرفت */}
+      <View style={styles.statsCard}>
+        <View style={styles.statsRow}>
+          <Text style={styles.statBadge}>سطح: {progress.level}</Text>
+          <Text style={styles.statBadge}>کل XP: {playerStats.xp}</Text>
+          <Text style={styles.statBadge}>پیروزی‌ها: {playerStats.wins} (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF3366" />
-        <Text style={styles.loadingText}>در حال بارگذاری سیستم جنگی...</Text>
+        <Text style={styles.loadingText}>در حال فراخوانی پایگاه داده جنگی...</Text>
       </View>
     );
   }
@@ -246,8 +311,11 @@ export default function WarGodGame() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* هدر */}
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>⬅ خروج به لابی</Text>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => (inBattle ? handleSurrender() : router.back())}
+        >
+          <Text style={styles.backBtnText}>{inBattle ? '🏳 عقب‌نشینی' : '⬅ لابی اصلی'}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>⚔️ خدای جنگ</Text>
       </View>
@@ -255,9 +323,9 @@ export default function WarGodGame() {
       {/* وضعیت لول و نوار پیشرفت */}
       <View style={styles.statsCard}>
         <View style={styles.statsRow}>
-          <Text style={styles.statBadge}>سطح {progress.level}</Text>
-          <Text style={styles.statBadge}>امتیاز: {playerStats.xp} XP</Text>
-          <Text style={styles.statBadge}>بردها: {playerStats.wins}</Text>
+          <Text style={styles.statBadge}>سطح: {progress.level}</Text>
+          <Text style={styles.statBadge}>کل XP: {playerStats.xp}</Text>
+          <Text style={styles.statBadge}>پیروزی‌ها: {playerStats.wins}</Text>
         </View>
 
         <View style={styles.progressContainer}>
@@ -274,52 +342,33 @@ export default function WarGodGame() {
           />
         </View>
         <Text style={styles.xpHint}>
-          پیشرفت: {progress.currentLevelProgressXp} / {progress.neededForCurrentLvl} XP ({progress.remainingXp} XP تا سطح بعدی)
-        </Text>
-      </View>
-
-      {!inBattle ? (
-        // گاراژ انتخاب ماشین به همراه نوار خون بالاسر
-        <View style={styles.garage}>
-          <Text style={styles.sectionTitle}>انتخاب تانک / ماشین جنگی:</Text>
-          {VEHICLES.map((vehicle) => (
-            <TouchableOpacity
-              key={vehicle.id}
-              style={[
-                styles.vehicleCard,
-                selectedVehicle.id === vehicle.id && styles.selectedCard,
-              ]}
-              onPress={() => setSelectedVehicle(vehicle)}
-            >
-              {/* بخش خون بالاسر ماشین */}
-              <View style={styles.vehicleHpSection}>
-                <View style={styles.vehicleHpHeader}>
-                  <Text style={styles.vehicleHpTitle}>میزان زره و سلامت</Text>
-                  <Text style={styles.vehicleHpValue}>{vehicle.armor} / {vehicle.armor} HP</Text>
+          پیشرفت سطح: {progress.currentLevelProgressXp} / {progress.neededForCurrentLvl} XP ({progress.remainingXp} XP={[styles.vehicleHpBarFill, { width: '100%' }]} />
+                  </View>
                 </View>
-                <View style={styles.vehicleHpBarBg}>
-                  <View style={[styles.vehicleHpBarFill, { width: '100%' }]} />
-                </View>
-              </View>
 
-              {/* مشخصات ماشین */}
-              <View style={styles.vehicleInfoRow}>
-                <View style={styles.vehicleRight}>
-                  <Text style={styles.vehicleIcon}>{vehicle.icon}</Text>
-                  <View>
-                    <Text style={styles.vehicleName}>{vehicle.name}</Text>
-                    <Text style={styles.vehicleDetails}>
-                      قدرت آتش: {vehicle.power} ⚔️ | مقاومت: {vehicle.armor} 🛡️
+                {/* جزئیات کارت */}
+                <View style={styles.vehicleInfoRow}>
+                  <View style={styles.vehicleRight}>
+                    <Text style={styles.vehicleIcon}>{vehicle.icon}</Text>
+                    <View>
+                      <Text style={styles.vehicleName}>{vehicle.name}</Text>
+                      <Text style={styles.vehicleDetails}>
+                        قدرت آتش: {vehicle.power} ⚔️ | زره: {vehicle.armor} 🛡️
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.badgeContainer}>
+                    <Text style={[styles.vehiclePrice, isUnlocked ? styles.unlockedText : styles.lockedText]}>
+                      {isUnlocked ? (isSelected ? '✓ انتخاب‌شده' : 'آماده نبرد') : vehicle.priceLabel}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.vehiclePrice}>{vehicle.price}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
 
           <TouchableOpacity style={styles.startBtn} onPress={startBattle}>
-            <Text style={styles.startBtnText}>ورود به نبرد آنلاین ⚔️</Text>
+            <Text style={styles.startBtnText}>شروع نبرد آنلاین ⚔️</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -330,14 +379,14 @@ export default function WarGodGame() {
             <View style={styles.hudPlayer}>
               <Text style={styles.hudName}>{selectedVehicle.name}</Text>
               <Text style={[styles.hudHp, { color: '#00E676' }]}>
-                HP: {playerHp} / {selectedVehicle.armor}
+                {playerHp} / {selectedVehicle.armor} HP
               </Text>
               <View style={styles.hpBarBg}>
                 <View
                   style={[
                     styles.hpBarFill,
                     {
-                      width: `${(playerHp / selectedVehicle.armor) * 100}%`,
+                      width: `${Math.max(0, (playerHp / selectedVehicle.armor) * 100)}%`,
                       backgroundColor: '#00E676',
                     },
                   ]}
@@ -348,16 +397,16 @@ export default function WarGodGame() {
             <Text style={styles.vsBadge}>VS</Text>
 
             <View style={styles.hudPlayer}>
-              <Text style={styles.hudName}>ربات متخاصم</Text>
+              <Text style={styles.hudName}>ربات رزمی</Text>
               <Text style={[styles.hudHp, { color: '#FF3366' }]}>
-                HP: {enemyHp} / {maxEnemyHp}
+                {enemyHp} / {maxEnemyHp} HP
               </Text>
               <View style={styles.hpBarBg}>
                 <View
                   style={[
                     styles.hpBarFill,
                     {
-                      width: `${(enemyHp / maxEnemyHp) * 100}%`,
+                      width: `${Math.max(0, (enemyHp / maxEnemyHp) * 100)}%`,
                       backgroundColor: '#FF3366',
                     },
                   ]}
@@ -368,25 +417,29 @@ export default function WarGodGame() {
 
           {/* پنل عملیات و مهارت‌ها */}
           <View style={styles.controlPanel}>
-            <TouchableOpacity style={styles.mainAttackBtn} onPress={handleAttack}>
+            <TouchableOpacity
+              style={[styles.mainAttackBtn, isEnemyTurn && styles.disabledSkill]}
+              onPress={handleAttack}
+              disabled={isEnemyTurn}
+            >
               <Text style={styles.mainAttackText}>🔥 شلیک توپ اصلی</Text>
             </TouchableOpacity>
 
             <View style={styles.skillsRow}>
               <TouchableOpacity
-                style={[styles.skillBtn, airstrikeCooldown > 0 && styles.disabledSkill]}
+                style={[styles.skillBtn, (airstrikeCooldown > 0 || isEnemyTurn) && styles.disabledSkill]}
                 onPress={handleAirstrike}
-                disabled={airstrikeCooldown > 0}
+                disabled={airstrikeCooldown > 0 || isEnemyTurn}
               >
                 <Text style={styles.skillBtnText}>
-                  🚀 حمله هوایی {airstrikeCooldown > 0 ? `(${airstrikeCooldown})` : ''}
+                  🚀 بمباران {airstrikeCooldown > 0 ? `(${airstrikeCooldown})` : ''}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.skillBtn, shieldActive && styles.activeSkill]}
+                style={[styles.skillBtn, (shieldActive || isEnemyTurn) && styles.activeSkill]}
                 onPress={handleShield}
-                disabled={shieldActive}
+                disabled={shieldActive || isEnemyTurn}
               >
                 <Text style={styles.skillBtnText}>
                   🛡️ {shieldActive ? 'سپر فعال' : 'سپر انرژی'}
@@ -394,9 +447,9 @@ export default function WarGodGame() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.skillBtn, repairCooldown > 0 && styles.disabledSkill]}
+                style={[styles.skillBtn, (repairCooldown > 0 || isEnemyTurn) && styles.disabledSkill]}
                 onPress={handleRepair}
-                disabled={repairCooldown > 0}
+                disabled={repairCooldown > 0 || isEnemyTurn}
               >
                 <Text style={styles.skillBtnText}>
                   🔧 تعمیر {repairCooldown > 0 ? `(${repairCooldown})` : ''}
@@ -405,8 +458,16 @@ export default function WarGodGame() {
             </View>
           </View>
 
-          {/* لاگ نبرد */}
-          <Text style={styles.logTitle}>گزارش زنده نبرد:</Text>
+          {/* وضعیت نوبت */}
+          {isEnemyTurn && (
+            <View style={styles.turnIndicator}>
+              <ActivityIndicator size="small" color="#FF3366" />
+              <Text style={styles.turnText}>نوبت شلیک حریف...</Text>
+            </View>
+          )}
+
+          {/* گزارش زنده نبرد */}
+          <Text style={styles.logTitle}>گزارش نبرد:</Text>
           <View style={styles.logBox}>
             {battleLog.map((log, index) => (
               <Text key={index} style={styles.logText}>
@@ -428,6 +489,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingTop: 45,
+    paddingBottom: 40,
   },
   center: {
     flex: 1,
@@ -472,7 +534,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statsRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 8,
     marginBottom: 10,
   },
@@ -521,7 +583,7 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     borderColor: '#FF3366',
-    backgroundColor: '#261928',
+    backgroundColor: '#231525',
   },
   vehicleHpSection: {
     width: '100%',
@@ -579,10 +641,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'right',
   },
+  badgeContainer: {
+    alignItems: 'flex-start',
+  },
   vehiclePrice: {
-    color: '#38BDF8',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  unlockedText: {
+    color: '#00E676',
+    backgroundColor: '#064E3B',
+  },
+  lockedText: {
+    color: '#F59E0B',
+    backgroundColor: '#451A03',
   },
   startBtn: {
     backgroundColor: '#FF3366',
@@ -653,7 +728,40 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   skillsRow: {
-    : 'hidden',
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  skillBtn: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  skillBtnText: {
+    color: '#F8FAFC',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  disabledSkill: {
+    opacity: 0.4,
+  },
+  activeSkill: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0369A1',
+  },
+  turnIndicator: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVerticalwidth: '90%',
+    height: 6,
+    backgroundColor: '#0F172A',
+    borderRadius: 3,
+    overflow: 'hidden',
   },
   hpBarFill: {
     height: '100%',
@@ -702,6 +810,18 @@ const styles = StyleSheet.create({
   activeSkill: {
     borderColor: '#38BDF8',
     backgroundColor: '#0369A1',
+  },
+  turnIndicator: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  turnText: {
+    color: '#FF3366',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   logTitle: {
     color: '#94A3B8',
